@@ -9,9 +9,10 @@ let direction = "right";
 let speed = 50;
 let gameId = null;
 let matrixDistance = [];
+let maxScore = 0;
 
-let size = 40;
-let grid = 10;
+let size = 20;
+let grid = 20;
 let fontSize = 10;
 let fontColor = "black";
 
@@ -20,7 +21,7 @@ let maxColorSnake = 255;
 
 // Switches
 let gameOver = false;
-let drawDist = false;
+let drawDist = true;
 let canMove = true;
 
 // Inicializa o jogo
@@ -117,6 +118,7 @@ function updateSnake() {
 	} else {
 		// A cobrinha comeu a comida, então aumenta o placar
 		score++;
+		if (score > maxScore) maxScore = score;
 
 		// Gera uma nova posição para a comida
 		generateFood();
@@ -145,7 +147,7 @@ function checkCollision() {
 	if (x < 0 || x >= canvas.width / size || y < 0 || y >= canvas.height / size) {
 		if (!gameOver) {
 			console.log('parede');
-			alert("Game Over! Pontuação final: " + score);
+			// alert("Game Over! Pontuação final: " + score);
 			gameOver = true;
 			startGame();
 		}
@@ -156,7 +158,7 @@ function checkCollision() {
 		if (x === snake[i].x && y === snake[i].y) {
 			if (!gameOver) {
 				console.log('cobra');
-				alert("Game Over! Pontuação final: " + score);
+				// alert("Game Over! Pontuação final: " + score);
 				gameOver = true;
 				startGame();
 			}
@@ -166,6 +168,7 @@ function checkCollision() {
 
 // Atualiza o placar
 function updateScore() {
+	document.getElementById("maxScore").innerHTML = "Pontuação Máxima: " + maxScore;
 	document.getElementById("score").innerHTML = "Placar: " + score;
 }
 
@@ -277,17 +280,53 @@ function analyze() {
 	let toRemove = [];
 	for (let i = 0; i < options.length; i++) {
 		let chance = options[i];
+
+		// Verifica se o proximo movimento vai bater na parede
 		if (chance.x < marginMin || chance.y < marginMin || chance.x > marginMax || chance.y > marginMax) {
 			toRemove.push(i);
 		}
 
+		// Verifica se o proximo movimento vai bater na cobra
 		for (let j = 0; j < snake.length; j++) {
 			if (chance.x == snake[j].x && chance.y == snake[j].y) {
 				toRemove.push(i);
 			}
 		}
 	}
-	
+
+	/*
+	// Verifica se o proximo movimento vai deixar a cobra cercada
+	for (let i = 0; i < options.length; i++) {
+		let options2 = [];
+
+		options2.push({ x: options[i].x - 1, y: options[i].y });
+		options2.push({ x: options[i].x + 1, y: options[i].y });
+		options2.push({ x: options[i].x, y: options[i].y - 1 });
+		options2.push({ x: options[i].x, y: options[i].y + 1 });
+
+		let toRemove2 = [];
+		for (let j = 0; j < options2.length; j++) {
+			let chance = options2[j];
+			// Verifica se o proximo movimento vai bater na parede
+			if (chance.x < marginMin || chance.y < marginMin || chance.x > marginMax || chance.y > marginMax) {
+				toRemove2.push(i);
+			}
+
+			// Verifica se o proximo movimento vai bater na cobra
+			for (let j = 0; j < snake.length; j++) {
+				if (chance.x == snake[j].x && chance.y == snake[j].y) {
+					toRemove2.push(i);
+				}
+			}
+		}
+		
+		toRemove2 = toRemove.filter((elem, index) => toRemove.indexOf(elem) === index);
+		if (toRemove2.length > 2) {
+			toRemove.push(i);
+		}
+	}
+	*/
+
 	toRemove = toRemove.filter((elem, index) => toRemove.indexOf(elem) === index);
 	toRemove.sort(function (a, b) { return b - a });
 
