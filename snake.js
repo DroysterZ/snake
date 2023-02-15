@@ -5,18 +5,20 @@ const ctx = canvas.getContext("2d");
 let snake = [];
 let food = {};
 let score = 0;
+let maxScore = 0;
+let steps = 0;
+let minSteps = -1;
 let direction = "right";
-let speed = 20;
+let speed = 1;
 let gameId = null;
 let matrixDistance = [];
-let maxScore = 0;
 
 let size = 20;
 let grid = 20;
 let fontSize = 10;
 let fontColor = "black";
 
-let minColorSnake = 50;
+let minColorSnake = 0;
 let maxColorSnake = 255;
 
 // Switches
@@ -30,6 +32,7 @@ function startGame() {
 	snake = [];
 	food = {};
 	score = 0;
+	steps = 0;
 	direction = "right";
 
 	// Reinicia os switches
@@ -142,12 +145,15 @@ function drawSnake() {
 function checkCollision() {
 	let x = snake[0].x;
 	let y = snake[0].y;
+	steps++;
 
 	// Colisão com a borda
 	if (x < 0 || x >= canvas.width / size || y < 0 || y >= canvas.height / size) {
 		if (!gameOver) {
-			console.log('parede');
-			alert("Game Over! Pontuação final: " + score);
+			if (minSteps == -1 || steps < minSteps) {
+				minSteps = steps;
+			}
+			// alert("Game Over! Pontuação final: " + score);
 			gameOver = true;
 			startGame();
 		}
@@ -157,7 +163,9 @@ function checkCollision() {
 	for (let i = 1; i < snake.length; i++) {
 		if (x === snake[i].x && y === snake[i].y) {
 			if (!gameOver) {
-				console.log('cobra');
+				if (minSteps == -1 || steps < minSteps) {
+					minSteps = steps;
+				}
 				// alert("Game Over! Pontuação final: " + score);
 				gameOver = true;
 				startGame();
@@ -169,7 +177,9 @@ function checkCollision() {
 // Atualiza o placar
 function updateScore() {
 	document.getElementById("maxScore").innerHTML = "Pontuação Máxima: " + maxScore;
+	document.getElementById("minSteps").innerHTML = "Quantidade mínima de passos: " + minSteps;
 	document.getElementById("score").innerHTML = "Placar: " + score;
+	document.getElementById("steps").innerHTML = "Passos: " + steps;
 }
 
 // Gera uma posição aleatória para a comida
@@ -199,9 +209,11 @@ function calcDistance() {
 		matrixDistance[x] = [];
 
 		for (let y = 0; y <= grid; y++) {
-			let distX = Math.abs(food.x - x);
-			let distY = Math.abs(food.y - y);
-			let dist = distX + distY;
+			// let distX = Math.abs(food.x - x);
+			// let distY = Math.abs(food.y - y);
+			// let dist = distX + distY;
+
+			let dist = Math.sqrt((food.x - x) ** 2 + (food.y - y) ** 2);
 			matrixDistance[x][y] = dist;
 		}
 	}
@@ -272,12 +284,6 @@ function analyze() {
 	let marginMax = grid - 1;
 
 	let options = [];
-	/*
-	options.push({ x: x - 1, y: y, direction: "left" });
-	options.push({ x: x + 1, y: y, direction: "right" });
-	options.push({ x: x, y: y - 1, direction: "up" });
-	options.push({ x: x, y: y + 1, direction: "down" });
-	*/
 	x % 2 == 0 ? options.push({ x: x, y: y - 1, direction: "up" }) : options.push({ x: x, y: y + 1, direction: "down" });
 	y % 2 == 1 ? options.push({ x: x - 1, y: y, direction: "left" }) : options.push({ x: x + 1, y: y, direction: "right" });
 
@@ -327,13 +333,3 @@ function analyze() {
 
 	updateMove(chosen.direction);
 }
-
-/*
-function analyze2() {
-	let x = snake[0].x;
-	let y = snake[0].y;
-
-	let options = [];
-
-}
-*/
