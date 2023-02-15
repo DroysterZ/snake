@@ -14,11 +14,11 @@ let gameId = null;
 let matrixDistance = [];
 
 let size = 20;
-let grid = 20;
+let grid = 10;
 let fontSize = 10;
 let fontColor = "black";
 
-let minColorSnake = 0;
+let minColorSnake = 50;
 let maxColorSnake = 255;
 
 // Switches
@@ -150,7 +150,7 @@ function checkCollision() {
 	// Colisão com a borda
 	if (x < 0 || x >= canvas.width / size || y < 0 || y >= canvas.height / size) {
 		if (!gameOver) {
-			if (minSteps == -1 || steps < minSteps) {
+			if (score == (grid * grid - 1) && (minSteps == -1 || steps < minSteps)) {
 				minSteps = steps;
 			}
 			// alert("Game Over! Pontuação final: " + score);
@@ -163,7 +163,7 @@ function checkCollision() {
 	for (let i = 1; i < snake.length; i++) {
 		if (x === snake[i].x && y === snake[i].y) {
 			if (!gameOver) {
-				if (minSteps == -1 || steps < minSteps) {
+				if (score == (grid * grid - 1) && (minSteps == -1 || steps < minSteps)) {
 					minSteps = steps;
 				}
 				// alert("Game Over! Pontuação final: " + score);
