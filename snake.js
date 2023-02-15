@@ -6,7 +6,7 @@ let snake = [];
 let food = {};
 let score = 0;
 let direction = "right";
-let speed = 50;
+let speed = 20;
 let gameId = null;
 let matrixDistance = [];
 let maxScore = 0;
@@ -21,7 +21,7 @@ let maxColorSnake = 255;
 
 // Switches
 let gameOver = false;
-let drawDist = true;
+let drawDist = false;
 let canMove = true;
 
 // Inicializa o jogo
@@ -42,7 +42,7 @@ function startGame() {
 	document.body.appendChild(canvas);
 
 	// Cria a cobrinha
-	for (let i = 4; i >= 0; i--) {
+	for (let i = 0; i >= 0; i--) {
 		// Precisa colocar o i-1 no X por causa da primeira execução do draw()
 		// Ele chama o updateSnake antes de desenhar, aí ele vai começar na sexta casa ao invés da quinta
 		snake.push({ x: i - 1, y: 0 });
@@ -147,7 +147,7 @@ function checkCollision() {
 	if (x < 0 || x >= canvas.width / size || y < 0 || y >= canvas.height / size) {
 		if (!gameOver) {
 			console.log('parede');
-			// alert("Game Over! Pontuação final: " + score);
+			alert("Game Over! Pontuação final: " + score);
 			gameOver = true;
 			startGame();
 		}
@@ -272,10 +272,14 @@ function analyze() {
 	let marginMax = grid - 1;
 
 	let options = [];
+	/*
 	options.push({ x: x - 1, y: y, direction: "left" });
 	options.push({ x: x + 1, y: y, direction: "right" });
 	options.push({ x: x, y: y - 1, direction: "up" });
 	options.push({ x: x, y: y + 1, direction: "down" });
+	*/
+	x % 2 == 0 ? options.push({ x: x, y: y - 1, direction: "up" }) : options.push({ x: x, y: y + 1, direction: "down" });
+	y % 2 == 1 ? options.push({ x: x - 1, y: y, direction: "left" }) : options.push({ x: x + 1, y: y, direction: "right" });
 
 	let toRemove = [];
 	for (let i = 0; i < options.length; i++) {
@@ -294,39 +298,6 @@ function analyze() {
 		}
 	}
 
-	/*
-	// Verifica se o proximo movimento vai deixar a cobra cercada
-	for (let i = 0; i < options.length; i++) {
-		let options2 = [];
-
-		options2.push({ x: options[i].x - 1, y: options[i].y });
-		options2.push({ x: options[i].x + 1, y: options[i].y });
-		options2.push({ x: options[i].x, y: options[i].y - 1 });
-		options2.push({ x: options[i].x, y: options[i].y + 1 });
-
-		let toRemove2 = [];
-		for (let j = 0; j < options2.length; j++) {
-			let chance = options2[j];
-			// Verifica se o proximo movimento vai bater na parede
-			if (chance.x < marginMin || chance.y < marginMin || chance.x > marginMax || chance.y > marginMax) {
-				toRemove2.push(i);
-			}
-
-			// Verifica se o proximo movimento vai bater na cobra
-			for (let j = 0; j < snake.length; j++) {
-				if (chance.x == snake[j].x && chance.y == snake[j].y) {
-					toRemove2.push(i);
-				}
-			}
-		}
-		
-		toRemove2 = toRemove.filter((elem, index) => toRemove.indexOf(elem) === index);
-		if (toRemove2.length > 2) {
-			toRemove.push(i);
-		}
-	}
-	*/
-
 	toRemove = toRemove.filter((elem, index) => toRemove.indexOf(elem) === index);
 	toRemove.sort(function (a, b) { return b - a });
 
@@ -336,16 +307,33 @@ function analyze() {
 
 	let minDist = grid + grid;
 	let chosen = {};
+	let minDistOptions = [];
+
 	for (let i = 0; i < options.length; i++) {
 		let chance = options[i];
 		if (matrixDistance[chance.x][chance.y] < minDist) {
+			minDistOptions = [chance];
 			minDist = matrixDistance[chance.x][chance.y];
-			chosen = chance;
+		} else if (matrixDistance[chance.x][chance.y] == minDist) {
+			minDistOptions.push(chance);
 		}
 	}
 
-	// let index = Math.round(Math.random() * (options.length - 1));
-	// chosen = options[index];
+	if (minDistOptions.length > 1) {
+		chosen = minDistOptions[Math.floor(Math.random() * (minDistOptions.length))];
+	} else {
+		chosen = minDistOptions[0];
+	}
 
 	updateMove(chosen.direction);
 }
+
+/*
+function analyze2() {
+	let x = snake[0].x;
+	let y = snake[0].y;
+
+	let options = [];
+
+}
+*/
