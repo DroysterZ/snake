@@ -6,16 +6,17 @@ let snake = [];
 let food = {};
 let score = 0;
 let direction = "right";
-let speed = 100;
+let speed = 50;
 let gameId = null;
+let matrixDistance = [];
 
-let size = 20;
-let grid = 20;
+let size = 40;
+let grid = 10;
 let fontSize = 10;
 let fontColor = "black";
 
-let minColorSnake = 155;
-let maxColorSnake = 205;
+let minColorSnake = 50;
+let maxColorSnake = 255;
 
 // Switches
 let gameOver = false;
@@ -74,13 +75,16 @@ function draw() {
 	}
 
 	// Desenha a cobrinha
-	drawSnake()
+	drawSnake();
 
 	// Desenha a comida
 	drawFood();
 
 	// Desenha a grid
 	drawGrid();
+
+	//BOT
+	analyze();
 }
 
 // Desenha a grid
@@ -140,6 +144,7 @@ function checkCollision() {
 	// Colisão com a borda
 	if (x < 0 || x >= canvas.width / size || y < 0 || y >= canvas.height / size) {
 		if (!gameOver) {
+			console.log('parede');
 			alert("Game Over! Pontuação final: " + score);
 			gameOver = true;
 			startGame();
@@ -150,6 +155,7 @@ function checkCollision() {
 	for (let i = 1; i < snake.length; i++) {
 		if (x === snake[i].x && y === snake[i].y) {
 			if (!gameOver) {
+				console.log('cobra');
 				alert("Game Over! Pontuação final: " + score);
 				gameOver = true;
 				startGame();
@@ -174,6 +180,9 @@ function generateFood() {
 			generateFood();
 		}
 	}
+
+	// Calcula a distancia de cada casa até a comida
+	calcDistance();
 }
 
 // Desenha a comida
@@ -182,17 +191,24 @@ function drawFood() {
 	ctx.fillRect(food.x * size, food.y * size, size, size);
 }
 
-function drawDistance() {
-	let max = 0.5;
-	let maxDist = grid + grid;
+function calcDistance() {
 	for (let x = 0; x <= grid; x++) {
+		matrixDistance[x] = [];
+
 		for (let y = 0; y <= grid; y++) {
 			let distX = Math.abs(food.x - x);
 			let distY = Math.abs(food.y - y);
 			let dist = distX + distY;
+			matrixDistance[x][y] = dist;
+		}
+	}
+}
 
-			let opacity = (dist * max / maxDist)
-			// ctx.fillStyle = "rgba(0, 0, 0, " + opacity + ")";
+function drawDistance() {
+	for (let x = 0; x <= grid; x++) {
+		for (let y = 0; y <= grid; y++) {
+			let dist = matrixDistance[x][y];
+
 			if (dist > 0) {
 				let color = (255 - (dist * 5));
 				ctx.fillStyle = "rgb(" + color + ", " + color + ", 255)";
@@ -208,35 +224,89 @@ function drawDistance() {
 
 // Detecta as teclas pressionadas
 document.onkeydown = function (event) {
-	if (canMove) {
-		switch (event.keyCode) {
-			case 37:
-				if (direction !== "right") {
-					direction = "left";
-					canMove = false;
-				}
-				break;
-			case 38:
-				if (direction !== "down") {
-					direction = "up"
-					canMove = false;
-				};
-				break;
-			case 39:
-				if (direction !== "left") {
-					direction = "right"
-					canMove = false;
-				};
-				break;
-			case 40:
-				if (direction !== "up") {
-					direction = "down"
-					canMove = false;
-				};
-				break;
-			case 68:
-				drawDist = drawDist ? false : true;
-				break;
-		}
+	switch (event.keyCode) {
+		case 37:
+			updateMove('left');
+			break;
+		case 38:
+			updateMove('up');
+			break;
+		case 39:
+			updateMove('right');
+			break;
+		case 40:
+			updateMove('down');
+			break;
+
+
+		case 68:
+			drawDist = drawDist ? false : true;
+			break;
 	}
 };
+
+// Atualiza a direcao de movimento
+function updateMove(input) {
+	if (canMove) {
+		let reverses = [];
+		reverses['up'] = 'down';
+		reverses['down'] = 'up';
+		reverses['left'] = 'right';
+		reverses['right'] = 'left';
+
+		if (input != reverses[direction]) {
+			direction = input;
+			canMove = false;
+		}
+	}
+}
+
+function analyze() {
+	let x = snake[0].x;
+	let y = snake[0].y;
+
+	let marginMin = 0;
+	let marginMax = grid - 1;
+
+	let options = [];
+	options.push({ x: x - 1, y: y, direction: "left" });
+	options.push({ x: x + 1, y: y, direction: "right" });
+	options.push({ x: x, y: y - 1, direction: "up" });
+	options.push({ x: x, y: y + 1, direction: "down" });
+
+	let toRemove = [];
+	for (let i = 0; i < options.length; i++) {
+		let chance = options[i];
+		if (chance.x < marginMin || chance.y < marginMin || chance.x > marginMax || chance.y > marginMax) {
+			toRemove.push(i);
+		}
+
+		for (let j = 0; j < snake.length; j++) {
+			if (chance.x == snake[j].x && chance.y == snake[j].y) {
+				toRemove.push(i);
+			}
+		}
+	}
+	
+	toRemove = toRemove.filter((elem, index) => toRemove.indexOf(elem) === index);
+	toRemove.sort(function (a, b) { return b - a });
+
+	for (let i = 0; i < toRemove.length; i++) {
+		options.splice(toRemove[i], 1);
+	}
+
+	let minDist = grid + grid;
+	let chosen = {};
+	for (let i = 0; i < options.length; i++) {
+		let chance = options[i];
+		if (matrixDistance[chance.x][chance.y] < minDist) {
+			minDist = matrixDistance[chance.x][chance.y];
+			chosen = chance;
+		}
+	}
+
+	// let index = Math.round(Math.random() * (options.length - 1));
+	// chosen = options[index];
+
+	updateMove(chosen.direction);
+}
