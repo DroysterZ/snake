@@ -61,7 +61,7 @@ function startGame() {
 function process() {
 	// Reinicia as globais
 	canMove = true;
-	
+	ctx.clearRect(0, 0, canvas.width, canvas.height);
 	drawPositions();
 	drawGrid();
 
@@ -360,7 +360,22 @@ function drawPositions() {
 	ctx.fillStyle = fontColor;
 	for (let x = 0; x < grid; x++) {
 		for (let y = 0; y < grid; y++) {
-			ctx.fillText(x + ' - ' + y, (x * size) + (fontSize / 2), (y * size) + fontSize + (fontSize / 2));
+			let sqrLeft = x * size;
+			let sqrTop = y * size;
+
+			let sqrRight = (x + 1) * size;
+			let sqrBot = (y + 1) * size;
+
+			let centerTop = (sqrLeft + ((sqrRight - sqrLeft) / 2)) + (fontSize / 2);
+			let centerLeft = (sqrBot + ((sqrTop - sqrBot) / 2)) - (fontSize / 2);
+
+			// ctx.fillText(x + ' - ' + y, sqrLeft + (fontSize / 2), sqrTop + fontSize + (fontSize / 2));
+
+			if (x == 1 && y == 1) {
+				debugger;
+				ctx.fillText('O', centerLeft, centerTop);
+				ctx.fillText('O', sqrRight, sqrBot);
+			}
 		}
 	}
 }
