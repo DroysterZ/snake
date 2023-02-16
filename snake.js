@@ -14,10 +14,10 @@ let steps = 0;
 let gameId = null;
 
 // Grid e jogo
-let size = 20;
+let size = 40;
 let grid = 20;
-let speed = 100;
-let initialSize = 1;
+let speed = 500;
+let initialSize = 5;
 
 let fontSize = 10;
 let fontColor = "black";
@@ -25,6 +25,7 @@ let fontColor = "black";
 // Switches
 let sw_drawGrid = false;
 let sw_drawPath = true;
+let sw_drawPositions = true;
 
 function startGame() {
 	// Reinicia as globais
@@ -44,7 +45,7 @@ function startGame() {
 
 	// Cria a cobrinha
 	for (let i = initialSize - 1; i >= 0; i--) {
-		snake.push({ x: i, y: 0 });
+		snake.push({ x: i + 5, y: 5 });
 	}
 
 	// Gera uma posição aleatória para a comida
@@ -60,14 +61,18 @@ function startGame() {
 function process() {
 	// Reinicia as globais
 	canMove = true;
+	
+	drawPositions();
+	drawGrid();
+
+	//Recria o mapeamento da matriz para usar no pathfinder depois
+	buildMap();
 
 	// Processamento da cobrinha
 	snakeProcess();
 
 	// Atualiza a posição da cobrinha
 	updateSnake();
-
-	buildMap();
 
 	// Verifica se a cobrinha colidiu com a borda ou consigo mesma
 	// checkCollision();
@@ -110,7 +115,7 @@ function buildMap() {
 			for (let i = 0; i < toRemove.length; i++) {
 				neighbors.splice(toRemove[i], 1);
 			}
-			
+
 			matrixMap[x][y] = { neighbors: neighbors };
 		}
 	}
@@ -201,8 +206,8 @@ function gameOver() {
 
 // Processamento da cobrinha
 function snakeProcess() {
-	path = findPath(snake[0], food);
-	if (path == null) path = findPath(snake[0], snake.at(-1));
+	path = findPath(snake[0], snake.at(-1));
+	// if (path == null) path = findPath(snake[0], snake.at(-1));
 	// if (path == null) path = analyze();
 
 	let nextMove = path[0];
@@ -283,70 +288,6 @@ function updateMove(input) {
 	}
 }
 
-function analyze() {
-	let x = snake[0].x;
-	let y = snake[0].y;
-
-	let marginMin = 0;
-	let marginMax = grid - 1;
-
-	let options = matrixMap[x][y].neighbors;
-	/*
-	for (let i = 0; i < options.length; i++) {
-		if (options[i].x > x) direction = 'r'
-		else if (options[i].x < x) direction = 'l'
-		else if (options[i].y > y) direction = 'u'
-		else if (options[i].y < y) direction = 'd'
-	}
-	*/
-	/*
-	let toRemove = [];
-	for (let i = 0; i < options.length; i++) {
-		let chance = options[i];
-	
-		// Verifica se o proximo movimento vai bater na parede
-		if (chance.x < marginMin || chance.y < marginMin || chance.x > marginMax || chance.y > marginMax) {
-			toRemove.push(i);
-		}
-	
-		// Verifica se o proximo movimento vai bater na cobra
-		for (let j = 0; j < snake.length; j++) {
-			if (chance.x == snake[j].x && chance.y == snake[j].y) {
-				toRemove.push(i);
-			}
-		}
-	}
-	
-	toRemove = toRemove.filter((elem, index) => toRemove.indexOf(elem) === index);
-	toRemove.sort(function (a, b) { return b - a });
-	
-	for (let i = 0; i < toRemove.length; i++) {
-		options.splice(toRemove[i], 1);
-	}
-	
-	let minDist = grid + grid;
-	let chosen = {};
-	let minDistOptions = [];
-	
-	for (let i = 0; i < options.length; i++) {
-		let chance = options[i];
-		if (matrixDistance[chance.x][chance.y] < minDist) {
-			minDistOptions = [chance];
-			minDist = matrixDistance[chance.x][chance.y];
-		} else if (matrixDistance[chance.x][chance.y] == minDist) {
-			minDistOptions.push(chance);
-		}
-	}
-	*/
-	if (options.length > 1) {
-		chosen = options[Math.floor(Math.random() * (options.length))];
-	} else {
-		chosen = options[0];
-	}
-
-	return [chosen];
-}
-
 function draw() {
 	// Limpa o canvas
 	ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -390,7 +331,11 @@ function drawSwitches() {
 
 	// Desenha a grid
 	if (sw_drawGrid) {
-		// drawGrid();
+		drawGrid();
+	}
+
+	if (sw_drawPositions) {
+		drawPositions();
 	}
 }
 
@@ -398,5 +343,24 @@ function drawPath() {
 	ctx.fillStyle = "yellow";
 	for (let i = 0; i < path.length; i++) {
 		ctx.fillRect(path[i].x * size, path[i].y * size, size, size);
+	}
+}
+
+// Desenha a grid
+function drawGrid() {
+	ctx.fillStyle = "black";
+	for (let i = 0; i < canvas.width / size; i++) {
+		ctx.fillRect(i * size, 0, 1, canvas.height);
+		ctx.fillRect(0, i * size, canvas.width, 1);
+	}
+}
+
+function drawPositions() {
+	ctx.font = fontSize + "px Verdana";
+	ctx.fillStyle = fontColor;
+	for (let x = 0; x < grid; x++) {
+		for (let y = 0; y < grid; y++) {
+			ctx.fillText(x + ' - ' + y, (x * size) + (fontSize / 2), (y * size) + fontSize + (fontSize / 2));
+		}
 	}
 }
