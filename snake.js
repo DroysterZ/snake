@@ -1,201 +1,305 @@
-// Variáveis globais
-// const canvas = document.createElement("canvas");
+// Canvas
 const canvas = document.getElementById("screen");
 const ctx = canvas.getContext("2d");
+
+// Globais
+let matrixMap = [];
+let matrixDistance = [];
 let snake = [];
 let food = {};
+let path = [];
+let direction = "r";
 let score = 0;
-let maxScore = 0;
 let steps = 0;
-let minSteps = -1;
-let direction = "right";
-let speed = 1;
 let gameId = null;
-let matrixDistance = [];
 
+// Grid e jogo
 let size = 20;
-let grid = 10;
+let grid = 20;
+let speed = 200;
+let initialSize = 1;
+
 let fontSize = 10;
 let fontColor = "black";
 
-let minColorSnake = 50;
-let maxColorSnake = 255;
-
 // Switches
-let gameOver = false;
-let drawDist = false;
-let canMove = true;
+let sw_drawGrid = false;
+let sw_drawPath = true;
 
-// Inicializa o jogo
 function startGame() {
-	// Reinicia as variáveis globais
+	// Reinicia as globais
+	matrixMap = [];
 	snake = [];
 	food = {};
-	score = 0;
-	steps = 0;
-	direction = "right";
+	path = [];
+	matrixDistance = [];
+	direction = "r";
 
-	// Reinicia os switches
-	gameOver = false;
-	canMove = true;
+	// Gera o mapa
+	buildMap();
 
 	// Define o tamanho do canvas
 	canvas.width = grid * size;
 	canvas.height = grid * size;
-	document.body.appendChild(canvas);
 
 	// Cria a cobrinha
-	for (let i = 0; i >= 0; i--) {
-		// Precisa colocar o i-1 no X por causa da primeira execução do draw()
-		// Ele chama o updateSnake antes de desenhar, aí ele vai começar na sexta casa ao invés da quinta
-		snake.push({ x: i - 1, y: 0 });
+	for (let i = initialSize - 1; i >= 0; i--) {
+		snake.push({ x: i, y: 0 });
 	}
 
 	// Gera uma posição aleatória para a comida
 	generateFood();
 
-	// Desenha o jogo a cada 100 milissegundos
+	// Desenha o jogo a cada x milissegundos
 	if (gameId) clearInterval(gameId);
-	gameId = setInterval(draw, speed);
+	gameId = setInterval(process, speed);
+
+	// process();
 }
 
-// Desenha o jogo
-function draw() {
-	// Limpa o canvas
-	ctx.clearRect(0, 0, canvas.width, canvas.height);
+function process() {
+	// Processamento da cobrinha
+	snakeProcess();
 
 	// Atualiza a posição da cobrinha
 	updateSnake();
 
+	
+	buildMap();
+
 	// Verifica se a cobrinha colidiu com a borda ou consigo mesma
-	checkCollision();
+	// checkCollision();
 
 	// Atualiza o placar
-	updateScore();
+	// updateScore();
 
-	// Revela os dados na grid, caso esteja habilitado
-	if (drawDist) {
-		drawDistance();
+	// Desenha as informações
+	draw();
+}
+
+// Gera a matriz do mapa
+function buildMap() {
+	matrixMap = [];
+	for (x = 0; x < grid; x++) {
+		matrixMap[x] = [];
+		for (y = 0; y < grid; y++) {
+			let neighbors = [];
+
+			if (x % 2 == 0) {
+				if (y - 1 >= 0) {
+					let valid = true;
+					for (let i = 1; i < snake.length; i++) {
+						if (y - 1 == snake[i].y) valid = false;
+					}
+					if (valid) neighbors.push({ x: x, y: y - 1 });
+				}
+			} else {
+				if (y + 1 < grid) {
+					let valid = true;
+					for (let i = 1; i < snake.length; i++) {
+						if (y + 1 == snake[i].y) valid = false;
+					}
+					if (valid) neighbors.push({ x: x, y: y + 1 });
+				}
+			}
+
+			if (y % 2 == 0) {
+				if (x + 1 < grid) {
+					let valid = true;
+					for (let i = 1; i < snake.length; i++) {
+						if (x + 1 == snake[i].x) valid = false;
+					}
+					if (valid) neighbors.push({ x: x + 1, y: y });
+				}
+			} else {
+				if (x - 1 >= 0) {
+					let valid = true;
+					for (let i = 1; i < snake.length; i++) {
+						if (x - 1 == snake[i].x) valid = false;
+					}
+					if (valid) neighbors.push({ x: x - 1, y: y });
+				}
+			}
+
+			matrixMap[x][y] = { neighbors: neighbors };
+		}
 	}
+}
+
+// Gera uma posição aleatória para a comida e calcula a distancia dos pontos do mapa até ela
+function generateFood() {
+	matrixDistance = [];
+	positionFood();
+
+	for (let x = 0; x < grid; x++) {
+		matrixDistance[x] = [];
+		for (let y = 0; y < grid; y++) {
+			matrixDistance[x][y] = heuristic(food, { x: x, y: y });
+		}
+	}
+}
+
+// Posiciona a comida no mapa
+function positionFood() {
+	food.x = Math.floor(Math.random() * grid);
+	food.y = Math.floor(Math.random() * grid);
+
+	// Se a posição está sobre a cobrinha, reposiciona
+	for (let i = 0; i < snake.length; i++) {
+		if (food.x === snake[i].x && food.y === snake[i].y) {
+			positionFood();
+		}
+	}
+}
+
+// Atualiza a posição da cobra
+function updateSnake() {
+	steps++;
+	let x = snake[0].x;
+	let y = snake[0].y;
+	if (direction == 'u') snake.unshift({ x: x, y: y + 1 });
+	if (direction == 'd') snake.unshift({ x: x, y: y - 1 });
+	if (direction == 'l') snake.unshift({ x: x - 1, y: y });
+	if (direction == 'r') snake.unshift({ x: x + 1, y: y });
+
+	let ret = checkCollision();
+	if (!ret.collision) {
+		snake.pop();
+	} else {
+		if (ret.obj == 'wall') {
+			gameOver();
+		} else {
+			generateFood();
+		}
+	}
+}
+
+function checkCollision() {
+	let x = snake[0].x;
+	let y = snake[0].y;
+	let ret = { collision: false, obj: null };
+	if (x == food.x && y == food.y) {
+		score++;
+		ret.collision = true;
+		ret.obj = 'food';
+		return ret;
+	}
+
+	if (x < 0 || x >= grid || y < 0 || y >= grid) {
+		ret.collision = true;
+		ret.obj = 'wall';
+		return ret;
+	}
+
+	for (let i = 1; i < snake.length; i++) {
+		if (x == snake[i].x && y == snake[i].y) {
+			ret.collision = true;
+			ret.obj = 'wall';
+			return ret;
+		}
+	}
+
+	return ret;
+}
+
+function gameOver() {
+	alert('FIM DE JOGO!\nPontuação: ' + score);
+	startGame();
+}
+
+
+// Processamento da cobrinha
+function snakeProcess() {
+	path = findPath(snake[0], food);
+	if (path == null) path = findPath(snake[0], snake.at(-1));
+
+	let nextMove = path[0];
+
+	if (nextMove.x > snake[0].x) direction = 'r'
+	else if (nextMove.x < snake[0].x) direction = 'l'
+	else if (nextMove.y > snake[0].y) direction = 'u'
+	else if (nextMove.y < snake[0].y) direction = 'd'
+}
+
+function heuristic(orig, dest) {
+	let distX = Math.abs(orig.x - dest.x);
+	let distY = Math.abs(orig.y - dest.y);
+	let dist = (distX + distY) ** 2;
+	return dist;
+}
+
+class Node {
+	constructor(x, y, g, h, parent) {
+		this.x = x;
+		this.y = y;
+		this.g = g;
+		this.h = h;
+		this.f = g + h;
+		this.parent = parent;
+	}
+}
+
+function findPath(start, end) {
+	let visited = new Array(matrixMap.length).fill(null).map(() => new Array(matrixMap[0].length).fill(false));
+	let queue = [{ x: start.x, y: start.y, cost: 0, path: [] }];
+
+	while (queue.length > 0) {
+		queue.sort((a, b) => a.cost - b.cost); // ordena a fila pelo menor custo
+
+		let current = queue.shift();
+
+		if (current.x === end.x && current.y === end.y) {
+			return current.path; // retorna o caminho quando encontrar o destino
+		}
+
+		if (!visited[current.x][current.y]) {
+			visited[current.x][current.y] = true;
+
+			let neighbors = matrixMap[current.x][current.y].neighbors;
+
+			neighbors.forEach((neighbor) => {
+				let neighborX = neighbor.x;
+				let neighborY = neighbor.y;
+
+				if (!visited[neighborX][neighborY]) {
+					let cost = current.cost + 1;
+					let path = [...current.path, { x: neighborX, y: neighborY }];
+					queue.push({ x: neighborX, y: neighborY, cost, path });
+				}
+			});
+		}
+	}
+
+	return null; // retorna null se não encontrar um caminho
+}
+
+function draw() {
+	// Limpa o canvas
+	ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+	// Desenha o que depende de switch
+	drawSwitches();
 
 	// Desenha a cobrinha
 	drawSnake();
 
 	// Desenha a comida
 	drawFood();
-
-	// Desenha a grid
-	drawGrid();
-
-	//BOT
-	analyze();
-}
-
-// Desenha a grid
-function drawGrid() {
-	ctx.fillStyle = "black";
-	for (let i = 0; i < canvas.width / size; i++) {
-		ctx.fillRect(i * size, 0, 1, canvas.height);
-		ctx.fillRect(0, i * size, canvas.width, 1);
-	}
-}
-
-// Atualiza a posição da cobrinha
-function updateSnake() {
-	let x = snake[0].x;
-	let y = snake[0].y;
-
-	// Move a cobrinha na direção atual
-	if (direction === "right") x++;
-	else if (direction === "left") x--;
-	else if (direction === "up") y--;
-	else if (direction === "down") y++;
-
-	// Adiciona a nova cabeça da cobrinha
-	let newHead = { x: x, y: y };
-	snake.unshift(newHead);
-
-	// Remove o rabo da cobrinha se ela não comer a comida
-	if (x !== food.x || y !== food.y) {
-		snake.pop();
-	} else {
-		// A cobrinha comeu a comida, então aumenta o placar
-		score++;
-		if (score > maxScore) maxScore = score;
-
-		// Gera uma nova posição para a comida
-		generateFood();
-	}
-	canMove = true;
 }
 
 // Desenha a cobrinha
 function drawSnake() {
-	let green = minColorSnake;
-	let part = Math.round((maxColorSnake - minColorSnake) / snake.length);
+	let green = 255;
+	let blue = 0;
+	let part = 255 / snake.length;
 	for (let i = 0; i < snake.length; i++) {
-		ctx.fillStyle = "rgb(0, " + green + ", 0)";
+		ctx.fillStyle = "rgb(0, " + green + ", " + blue + ")";
 		ctx.fillRect(snake[i].x * size, snake[i].y * size, size, size);
-		green += part;
-		if (green > maxColorSnake) green = maxColorSnake;
+		green -= part;
+		blue += part;
+		if (green < 0) green = 0;
+		if (blue > 255) blue = 255;
 	}
-}
-
-// Verifica se a cobrinha colidiu com a borda ou consigo mesma
-function checkCollision() {
-	let x = snake[0].x;
-	let y = snake[0].y;
-	steps++;
-
-	// Colisão com a borda
-	if (x < 0 || x >= canvas.width / size || y < 0 || y >= canvas.height / size) {
-		if (!gameOver) {
-			if (score == (grid * grid - 1) && (minSteps == -1 || steps < minSteps)) {
-				minSteps = steps;
-			}
-			// alert("Game Over! Pontuação final: " + score);
-			gameOver = true;
-			startGame();
-		}
-	}
-
-	// Colisão consigo mesma
-	for (let i = 1; i < snake.length; i++) {
-		if (x === snake[i].x && y === snake[i].y) {
-			if (!gameOver) {
-				if (score == (grid * grid - 1) && (minSteps == -1 || steps < minSteps)) {
-					minSteps = steps;
-				}
-				// alert("Game Over! Pontuação final: " + score);
-				gameOver = true;
-				startGame();
-			}
-		}
-	}
-}
-
-// Atualiza o placar
-function updateScore() {
-	document.getElementById("maxScore").innerHTML = "Pontuação Máxima: " + maxScore;
-	document.getElementById("minSteps").innerHTML = "Quantidade mínima de passos: " + minSteps;
-	document.getElementById("score").innerHTML = "Placar: " + score;
-	document.getElementById("steps").innerHTML = "Passos: " + steps;
-}
-
-// Gera uma posição aleatória para a comida
-function generateFood() {
-	food.x = Math.floor(Math.random() * (canvas.width / size));
-	food.y = Math.floor(Math.random() * (canvas.height / size));
-
-	// Verifica se a nova posição da comida está sobre a cobrinha
-	for (let i = 0; i < snake.length; i++) {
-		if (food.x === snake[i].x && food.y === snake[i].y) {
-			generateFood();
-		}
-	}
-
-	// Calcula a distancia de cada casa até a comida
-	calcDistance();
 }
 
 // Desenha a comida
@@ -204,132 +308,21 @@ function drawFood() {
 	ctx.fillRect(food.x * size, food.y * size, size, size);
 }
 
-function calcDistance() {
-	for (let x = 0; x <= grid; x++) {
-		matrixDistance[x] = [];
+function drawSwitches() {
+	// Desenha o caminho da cobra até a comida
+	if (sw_drawPath) {
+		drawPath();
+	}
 
-		for (let y = 0; y <= grid; y++) {
-			// let distX = Math.abs(food.x - x);
-			// let distY = Math.abs(food.y - y);
-			// let dist = distX + distY;
-
-			let dist = Math.sqrt((food.x - x) ** 2 + (food.y - y) ** 2);
-			matrixDistance[x][y] = dist;
-		}
+	// Desenha a grid
+	if (sw_drawGrid) {
+		// drawGrid();
 	}
 }
 
-function drawDistance() {
-	for (let x = 0; x <= grid; x++) {
-		for (let y = 0; y <= grid; y++) {
-			let dist = matrixDistance[x][y];
-
-			if (dist > 0) {
-				let color = (255 - (dist * 5));
-				ctx.fillStyle = "rgb(" + color + ", " + color + ", 255)";
-				ctx.fillRect(x * size, y * size, size, size);
-			}
-
-			ctx.font = fontSize + "px Verdana";
-			ctx.fillStyle = fontColor;
-			ctx.fillText(dist, (x * size) + (fontSize / 2), (y * size) + fontSize + (fontSize / 2));
-		}
+function drawPath() {
+	ctx.fillStyle = "yellow";
+	for (let i = 0; i < path.length; i++) {
+		ctx.fillRect(path[i].x * size, path[i].y * size, size, size);
 	}
-}
-
-// Detecta as teclas pressionadas
-document.onkeydown = function (event) {
-	switch (event.keyCode) {
-		case 37:
-			updateMove('left');
-			break;
-		case 38:
-			updateMove('up');
-			break;
-		case 39:
-			updateMove('right');
-			break;
-		case 40:
-			updateMove('down');
-			break;
-
-
-		case 68:
-			drawDist = drawDist ? false : true;
-			break;
-	}
-};
-
-// Atualiza a direcao de movimento
-function updateMove(input) {
-	if (canMove) {
-		let reverses = [];
-		reverses['up'] = 'down';
-		reverses['down'] = 'up';
-		reverses['left'] = 'right';
-		reverses['right'] = 'left';
-
-		if (input != reverses[direction]) {
-			direction = input;
-			canMove = false;
-		}
-	}
-}
-
-function analyze() {
-	let x = snake[0].x;
-	let y = snake[0].y;
-
-	let marginMin = 0;
-	let marginMax = grid - 1;
-
-	let options = [];
-	x % 2 == 0 ? options.push({ x: x, y: y - 1, direction: "up" }) : options.push({ x: x, y: y + 1, direction: "down" });
-	y % 2 == 1 ? options.push({ x: x - 1, y: y, direction: "left" }) : options.push({ x: x + 1, y: y, direction: "right" });
-
-	let toRemove = [];
-	for (let i = 0; i < options.length; i++) {
-		let chance = options[i];
-
-		// Verifica se o proximo movimento vai bater na parede
-		if (chance.x < marginMin || chance.y < marginMin || chance.x > marginMax || chance.y > marginMax) {
-			toRemove.push(i);
-		}
-
-		// Verifica se o proximo movimento vai bater na cobra
-		for (let j = 0; j < snake.length; j++) {
-			if (chance.x == snake[j].x && chance.y == snake[j].y) {
-				toRemove.push(i);
-			}
-		}
-	}
-
-	toRemove = toRemove.filter((elem, index) => toRemove.indexOf(elem) === index);
-	toRemove.sort(function (a, b) { return b - a });
-
-	for (let i = 0; i < toRemove.length; i++) {
-		options.splice(toRemove[i], 1);
-	}
-
-	let minDist = grid + grid;
-	let chosen = {};
-	let minDistOptions = [];
-
-	for (let i = 0; i < options.length; i++) {
-		let chance = options[i];
-		if (matrixDistance[chance.x][chance.y] < minDist) {
-			minDistOptions = [chance];
-			minDist = matrixDistance[chance.x][chance.y];
-		} else if (matrixDistance[chance.x][chance.y] == minDist) {
-			minDistOptions.push(chance);
-		}
-	}
-
-	if (minDistOptions.length > 1) {
-		chosen = minDistOptions[Math.floor(Math.random() * (minDistOptions.length))];
-	} else {
-		chosen = minDistOptions[0];
-	}
-
-	updateMove(chosen.direction);
 }
