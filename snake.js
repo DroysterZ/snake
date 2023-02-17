@@ -8,15 +8,16 @@ let matrixDistance = [];
 let snake = [];
 let food = {};
 let path = [];
+let lastPosition = {};
 let direction = "r";
 let score = 0;
 let steps = 0;
 let gameId = null;
 
 // Grid e jogo
-let size = 40;
+let size = 20;
 let grid = 20;
-let speed = 500;
+let speed = 1;
 let initialSize = 5;
 
 let fontSize = 10;
@@ -25,19 +26,19 @@ let fontColor = "black";
 // Switches
 let sw_drawGrid = false;
 let sw_drawPath = true;
-let sw_drawPositions = true;
 
 function startGame() {
 	// Reinicia as globais
 	matrixMap = [];
+	matrixDistance = [];
 	snake = [];
 	food = {};
 	path = [];
-	matrixDistance = [];
+	lastPosition = {};
 	direction = "r";
 
 	// Gera o mapa
-	buildMap();
+	// buildMap();
 
 	// Define o tamanho do canvas
 	canvas.width = grid * size;
@@ -61,12 +62,6 @@ function startGame() {
 function process() {
 	// Reinicia as globais
 	canMove = true;
-	ctx.clearRect(0, 0, canvas.width, canvas.height);
-	drawPositions();
-	drawGrid();
-
-	//Recria o mapeamento da matriz para usar no pathfinder depois
-	buildMap();
 
 	// Processamento da cobrinha
 	snakeProcess();
@@ -86,7 +81,6 @@ function process() {
 
 // Gera a matriz do mapa
 function buildMap() {
-	// matrixMap = [];
 	for (x = 0; x < grid; x++) {
 		matrixMap[x] = [];
 		for (y = 0; y < grid; y++) {
@@ -162,7 +156,7 @@ function updateSnake() {
 
 	let ret = checkCollision(x, y);
 	if (!ret.collision) {
-		snake.pop();
+		lastPosition = snake.pop();
 	} else {
 		if (ret.obj == 'wall') {
 			gameOver();
@@ -206,17 +200,20 @@ function gameOver() {
 
 // Processamento da cobrinha
 function snakeProcess() {
-	path = findPath(snake[0], snake.at(-1));
-	// if (path == null) path = findPath(snake[0], snake.at(-1));
-	// if (path == null) path = analyze();
-
-	let nextMove = path[0];
+	path = findPath(snake[0], food);
+	if (path == null) path = findPath(snake[0], lastPosition);
 
 	let nextDirection = '';
-	if (nextMove.x > snake[0].x) nextDirection = 'r'
-	else if (nextMove.x < snake[0].x) nextDirection = 'l'
-	else if (nextMove.y > snake[0].y) nextDirection = 'u'
-	else if (nextMove.y < snake[0].y) nextDirection = 'd'
+	
+	if (path) {
+		let nextMove = path[0];
+		if (nextMove.x > snake[0].x) nextDirection = 'r'
+		else if (nextMove.x < snake[0].x) nextDirection = 'l'
+		else if (nextMove.y > snake[0].y) nextDirection = 'u'
+		else if (nextMove.y < snake[0].y) nextDirection = 'd'
+	} else {
+		nextDirection = direction;
+	}
 	updateMove(nextDirection);
 }
 
@@ -239,6 +236,9 @@ class Node {
 }
 
 function findPath(start, end) {
+	// Remapeia a matriz
+	buildMap();
+
 	let visited = new Array(matrixMap.length).fill(null).map(() => new Array(matrixMap[0].length).fill(false));
 	let queue = [{ x: start.x, y: start.y, cost: 0, path: [] }];
 
@@ -333,10 +333,6 @@ function drawSwitches() {
 	if (sw_drawGrid) {
 		drawGrid();
 	}
-
-	if (sw_drawPositions) {
-		drawPositions();
-	}
 }
 
 function drawPath() {
@@ -352,30 +348,5 @@ function drawGrid() {
 	for (let i = 0; i < canvas.width / size; i++) {
 		ctx.fillRect(i * size, 0, 1, canvas.height);
 		ctx.fillRect(0, i * size, canvas.width, 1);
-	}
-}
-
-function drawPositions() {
-	ctx.font = fontSize + "px Verdana";
-	ctx.fillStyle = fontColor;
-	for (let x = 0; x < grid; x++) {
-		for (let y = 0; y < grid; y++) {
-			let sqrLeft = x * size;
-			let sqrTop = y * size;
-
-			let sqrRight = (x + 1) * size;
-			let sqrBot = (y + 1) * size;
-
-			let centerTop = (sqrLeft + ((sqrRight - sqrLeft) / 2)) + (fontSize / 2);
-			let centerLeft = (sqrBot + ((sqrTop - sqrBot) / 2)) - (fontSize / 2);
-
-			// ctx.fillText(x + ' - ' + y, sqrLeft + (fontSize / 2), sqrTop + fontSize + (fontSize / 2));
-
-			if (x == 1 && y == 1) {
-				debugger;
-				ctx.fillText('O', centerLeft, centerTop);
-				ctx.fillText('O', sqrRight, sqrBot);
-			}
-		}
 	}
 }
