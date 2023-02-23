@@ -5,6 +5,7 @@ const ctx = canvas.getContext("2d");
 // Globais
 let matrixMap = [];
 let matrixDistance = [];
+let foodPositions = [];
 let snake = [];
 let food = {};
 let path = [];
@@ -18,7 +19,7 @@ let gameId = null;
 let size = 20;
 let grid = 20;
 let speed = 1;
-let initialSize = 5;
+let initialSize = 1;
 
 let fontSize = 10;
 let fontColor = "black";
@@ -26,6 +27,10 @@ let fontColor = "black";
 // Switches
 let sw_drawGrid = false;
 let sw_drawPath = true;
+
+// Validacoes extras
+let canMove = true;
+let scored = true;
 
 function startGame() {
 	// Reinicia as globais
@@ -36,9 +41,8 @@ function startGame() {
 	path = [];
 	lastPosition = {};
 	direction = "r";
-
-	// Gera o mapa
-	// buildMap();
+	score = 0;
+	steps = 0;
 
 	// Define o tamanho do canvas
 	canvas.width = grid * size;
@@ -46,7 +50,7 @@ function startGame() {
 
 	// Cria a cobrinha
 	for (let i = initialSize - 1; i >= 0; i--) {
-		snake.push({ x: i + 5, y: 5 });
+		snake.push({ x: i, y: 0 });
 	}
 
 	// Gera uma posição aleatória para a comida
@@ -55,22 +59,18 @@ function startGame() {
 	// Desenha o jogo a cada x milissegundos
 	if (gameId) clearInterval(gameId);
 	gameId = setInterval(process, speed);
-
-	// process();
 }
 
 function process() {
 	// Reinicia as globais
 	canMove = true;
+	scored = true;
 
 	// Processamento da cobrinha
 	snakeProcess();
 
 	// Atualiza a posição da cobrinha
 	updateSnake();
-
-	// Verifica se a cobrinha colidiu com a borda ou consigo mesma
-	// checkCollision();
 
 	// Atualiza o placar
 	// updateScore();
@@ -80,7 +80,7 @@ function process() {
 }
 
 // Gera a matriz do mapa
-function buildMap() {
+function buildMap(tail = false) {
 	for (x = 0; x < grid; x++) {
 		matrixMap[x] = [];
 		for (y = 0; y < grid; y++) {
@@ -100,7 +100,7 @@ function buildMap() {
 
 			let toRemove = [];
 			for (let i = 0; i < neighbors.length; i++) {
-				let col = checkCollision(neighbors[i].x, neighbors[i].y);
+				let col = checkCollision(neighbors[i].x, neighbors[i].y, tail);
 				if (col.collision && col.obj == 'wall') {
 					toRemove.push(i);
 				}
@@ -111,6 +111,18 @@ function buildMap() {
 			}
 
 			matrixMap[x][y] = { neighbors: neighbors };
+		}
+	}
+}
+
+// Mapeia os locais disponiveis para gerar a comida
+function buildFoodMap() {
+	foodPositions = [];
+	for (let x = 0; x < grid; x++) {
+		for (let y = 0; y < grid; y++) {
+			if (checkCollision(x, y).collision == false) {
+				foodPositions.push({ x: x, y: y });
+			}
 		}
 	}
 }
@@ -130,14 +142,12 @@ function generateFood() {
 
 // Posiciona a comida no mapa
 function positionFood() {
-	food.x = Math.floor(Math.random() * grid);
-	food.y = Math.floor(Math.random() * grid);
-
-	// Se a posição está sobre a cobrinha, reposiciona
-	for (let i = 0; i < snake.length; i++) {
-		if (food.x === snake[i].x && food.y === snake[i].y) {
-			positionFood();
-		}
+	buildFoodMap();
+	if (foodPositions.length > 0) {
+		let index = Math.floor(Math.random() * foodPositions.length);
+		food = foodPositions.splice(index, 1)[0];
+	} else {
+		food = { x: -1, y: -1 };
 	}
 }
 
@@ -164,12 +174,19 @@ function updateSnake() {
 			generateFood();
 		}
 	}
+
+	if (food.x == -1 && food.y == -1) {
+		gameOver();
+	}
 }
 
-function checkCollision(x, y) {
+function checkCollision(x, y, tail = false) {
 	let ret = { collision: false, obj: null };
 	if (x == food.x && y == food.y) {
-		score++;
+		if (scored && snake[0].x == food.x && snake[0].y == food.y) {
+			scored = false;
+			score++;
+		}
 		ret.collision = true;
 		ret.obj = 'food';
 		return ret;
@@ -181,6 +198,8 @@ function checkCollision(x, y) {
 		return ret;
 	}
 
+	let length = snake.length;
+	if (tail) length--;
 	for (let i = 1; i < snake.length; i++) {
 		if (x == snake[i].x && y == snake[i].y) {
 			ret.collision = true;
@@ -202,11 +221,12 @@ function gameOver() {
 function snakeProcess() {
 	path = findPath(snake[0], food);
 	if (path == null) path = findPath(snake[0], lastPosition);
+	if (path == null) path = findPath(snake[0], snake[snake.length - 1], true);
 
 	let nextDirection = '';
-	
-	if (path) {
-		let nextMove = path[0];
+
+	if (path != null && path.length > 0) {
+		let nextMove = path[1] ?? path[0];
 		if (nextMove.x > snake[0].x) nextDirection = 'r'
 		else if (nextMove.x < snake[0].x) nextDirection = 'l'
 		else if (nextMove.y > snake[0].y) nextDirection = 'u'
@@ -235,12 +255,12 @@ class Node {
 	}
 }
 
-function findPath(start, end) {
+function findPath(start, end, tail = false) {
 	// Remapeia a matriz
-	buildMap();
+	buildMap(tail);
 
 	let visited = new Array(matrixMap.length).fill(null).map(() => new Array(matrixMap[0].length).fill(false));
-	let queue = [{ x: start.x, y: start.y, cost: 0, path: [] }];
+	let queue = [{ x: start.x, y: start.y, cost: 0, path: [start] }];
 
 	while (queue.length > 0) {
 		queue.sort((a, b) => a.cost - b.cost); // ordena a fila pelo menor custo
@@ -288,6 +308,7 @@ function updateMove(input) {
 	}
 }
 
+// Gerencia a parte grafica
 function draw() {
 	// Limpa o canvas
 	ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -295,11 +316,11 @@ function draw() {
 	// Desenha o que depende de switch
 	drawSwitches();
 
-	// Desenha a cobrinha
-	drawSnake();
-
 	// Desenha a comida
 	drawFood();
+
+	// Desenha a cobrinha
+	drawSnake();
 }
 
 // Desenha a cobrinha
@@ -323,6 +344,7 @@ function drawFood() {
 	ctx.fillRect(food.x * size, food.y * size, size, size);
 }
 
+// Desenha tudo que pode ser habilitado ou desabilitado
 function drawSwitches() {
 	// Desenha o caminho da cobra até a comida
 	if (sw_drawPath) {
@@ -335,10 +357,13 @@ function drawSwitches() {
 	}
 }
 
+// Desenha o caminho identificado pela cobra
 function drawPath() {
-	ctx.fillStyle = "yellow";
-	for (let i = 0; i < path.length; i++) {
-		ctx.fillRect(path[i].x * size, path[i].y * size, size, size);
+	if (path) {
+		ctx.fillStyle = "yellow";
+		for (let i = 0; i < path.length; i++) {
+			ctx.fillRect(path[i].x * size, path[i].y * size, size, size);
+		}
 	}
 }
 
