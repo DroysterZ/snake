@@ -4,20 +4,77 @@
 <head>
 	<meta charset="utf-8" />
 	<style>
+		.container {
+			width: 100%;
+		}
+
 		canvas {
 			border: 1px solid black;
+			float: left;
+		}
+
+		.menu {
+			float: left;
+			margin-left: 30px;
 		}
 	</style>
 </head>
 
 <body onload="startGame()">
-	<div id="maxScore"></div>
-	<div id="score"></div>
-	<div id="steps"></div>
-	<div id="minSteps"></div>
-	<canvas id="screen"></canvas>
+	<div class="containter">
+		<div class="info">
+			<p id="score"></p>
+			<p id="steps"></p>
+		</div>
+		<canvas id="screen"></canvas>
+		<div class="menu">
+			<div class="menu-speed">
+				<label for="speed">Speed</label>
+				<input type="number" name="speed" id="speed" />
+			</div>
+			<div class="menu-restart">
+				<label for="restart">Restart</label>
+				<input id="restart" type="button" value="Restart">
+			</div>
+			<div class="menu-pause">
+				<label for="pause">pause</label>
+				<input id="pause" type="button" value="pause">
+			</div>
+			<div class="menu-play">
+				<label for="play">play</label>
+				<input id="play" type="button" value="play">
+			</div>
+		</div>
+	</div>
 	<script src="snake.js"></script>
-	<div id="menu"></div>
+	<script>
+		document.getElementById("speed").value = speed;
+
+		document.getElementById("speed").onchange = function () {
+			let spd = document.getElementById("speed").value * 1;
+			if (gameId) clearInterval(gameId);
+			gameId = setInterval(process, spd);
+		}
+
+		document.getElementById("speed").onblur = function () {
+			let elem = document.getElementById("speed");
+			if (elem.value == '') {
+				elem.value = speed;
+			}
+		}
+
+		document.getElementById("restart").onclick = function () {
+			startGame();
+		}
+		document.getElementById("pause").onclick = function () {
+			clearInterval(gameId);
+		}
+		document.getElementById("play").onclick = function () {
+			let spd = document.getElementById("speed").value * 1;
+			if (gameId) clearInterval(gameId);
+			gameId = setInterval(process, spd);
+		}
+	</script>
 </body>
 
 </html>

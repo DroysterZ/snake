@@ -5,6 +5,7 @@ const ctx = canvas.getContext("2d");
 // Globais
 let matrixMap = [];
 let matrixDistance = [];
+let matrixSlots = [];
 let foodPositions = [];
 let snake = [];
 let food = {};
@@ -36,6 +37,7 @@ function startGame() {
 	// Reinicia as globais
 	matrixMap = [];
 	matrixDistance = [];
+	matrixSlots = [];
 	snake = [];
 	food = {};
 	path = [];
@@ -43,6 +45,8 @@ function startGame() {
 	direction = "r";
 	score = 0;
 	steps = 0;
+
+	if (document.getElementById("speed").value * 1) speed = document.getElementById("speed").value * 1;
 
 	// Define o tamanho do canvas
 	canvas.width = grid * size;
@@ -56,6 +60,12 @@ function startGame() {
 	// Gera uma posição aleatória para a comida
 	generateFood();
 
+	// Preenche a matriz de casas ocupadas
+	buildMapSlots();
+
+	// Graficos do jogo
+	draw();
+
 	// Desenha o jogo a cada x milissegundos
 	if (gameId) clearInterval(gameId);
 	gameId = setInterval(process, speed);
@@ -66,14 +76,17 @@ function process() {
 	canMove = true;
 	scored = true;
 
+	// Mapa global
+	buildMapSlots();
+
 	// Processamento da cobrinha
 	snakeProcess();
 
 	// Atualiza a posição da cobrinha
 	updateSnake();
 
-	// Atualiza o placar
-	// updateScore();
+	// Atualiza as informacoes
+	updateInfo();
 
 	// Desenha as informações
 	draw();
@@ -125,6 +138,30 @@ function buildFoodMap() {
 			}
 		}
 	}
+}
+
+// Mapeia as casas ocupadas e livres
+function buildMapSlots() {
+	matrixSlots = [];
+	for (let x = 0; x < grid; x++) {
+		matrixSlots[x] = [];
+		for (let y = 0; y < grid; y++) {
+			matrixSlots[x][y] = 0;
+		}
+	}
+	for (let i = 0; i < snake.length; i++) {
+		matrixSlots[snake[i].x][snake[i].y] = 1;
+	}
+
+	/*
+	matrixSlots.unshift(new Array(grid).fill(1));
+	matrixSlots.push(new Array(grid).fill(1));
+
+	for (let i = 0; i < matrixSlots.length; i++) {
+		matrixSlots[i].unshift(1);
+		matrixSlots[i].push(1);
+	}
+	*/
 }
 
 // Gera uma posição aleatória para a comida e calcula a distancia dos pontos do mapa até ela
@@ -212,8 +249,8 @@ function checkCollision(x, y, tail = false) {
 }
 
 function gameOver() {
-	alert('FIM DE JOGO!\nPontuação: ' + score);
-	startGame();
+	draw();
+	clearInterval(gameId);
 }
 
 
@@ -227,6 +264,19 @@ function snakeProcess() {
 
 	if (path != null && path.length > 0) {
 		let nextMove = path[1] ?? path[0];
+		if (!findEnclosedAreas()) {
+			buildMapSlots();
+			matrixSlots[nextMove.x][nextMove.y] = 1;
+			matrixSlots[snake.at(-1).x][snake.at(-1).y] = 0;
+	
+			if ((nextMove.x != food.x && nextMove.y != food.y) && findEnclosedAreas()) {
+				if (matrixMap[snake[0].x][snake[0].y].neighbors.length > 1) {
+					let index = matrixMap[snake[0].x][snake[0].y].neighbors.findIndex(elem => elem.x == nextMove.x && elem.y == nextMove.y) == 0 ? 1 : 0;
+					nextMove = matrixMap[snake[0].x][snake[0].y].neighbors[index];
+				}
+			}
+		}
+
 		if (nextMove.x > snake[0].x) nextDirection = 'r'
 		else if (nextMove.x < snake[0].x) nextDirection = 'l'
 		else if (nextMove.y > snake[0].y) nextDirection = 'u'
@@ -308,6 +358,12 @@ function updateMove(input) {
 	}
 }
 
+// Atualiza as informacoes
+function updateInfo() {
+	document.getElementById("score").innerHTML = "Placar: " + score;
+	document.getElementById("steps").innerHTML = "Passos: " + steps;
+}
+
 // Gerencia a parte grafica
 function draw() {
 	// Limpa o canvas
@@ -324,17 +380,24 @@ function draw() {
 }
 
 // Desenha a cobrinha
-function drawSnake() {
-	let green = 255;
-	let blue = 0;
-	let part = 255 / snake.length;
+function drawSnake(red = 0, green = 0, blue = 0, grStart = 'g', grEnd = 'b', grMin = 0, grMax = 255) {
+	let part = (grMax - grMin) / snake.length;
+	let colors = {
+		r: red,
+		g: green,
+		b: blue
+	};
+
+	colors[grStart] = grMax;
+	colors[grEnd] = grMin;
+
 	for (let i = 0; i < snake.length; i++) {
-		ctx.fillStyle = "rgb(0, " + green + ", " + blue + ")";
+		ctx.fillStyle = "rgb(" + colors.r + ", " + colors.g + ", " + colors.b + ")";
 		ctx.fillRect(snake[i].x * size, snake[i].y * size, size, size);
-		green -= part;
-		blue += part;
-		if (green < 0) green = 0;
-		if (blue > 255) blue = 255;
+		colors[grStart] -= part;
+		colors[grEnd] += part;
+		if (colors[grStart] < grMin) colors[grStart] = grMax;
+		if (colors[grEnd] > grMax) colors[grEnd] = grMin;
 	}
 }
 
@@ -361,7 +424,7 @@ function drawSwitches() {
 function drawPath() {
 	if (path) {
 		ctx.fillStyle = "yellow";
-		for (let i = 0; i < path.length; i++) {
+		for (let i = 1; i < path.length; i++) {
 			ctx.fillRect(path[i].x * size, path[i].y * size, size, size);
 		}
 	}
@@ -374,4 +437,69 @@ function drawGrid() {
 		ctx.fillRect(i * size, 0, 1, canvas.height);
 		ctx.fillRect(0, i * size, canvas.width, 1);
 	}
+}
+
+function floodFill(matrix, i, j, targetColor, replacementColor) {
+	// Se a cor atual não é a cor de destino, não faz nada
+	if (matrix[i][j] !== targetColor) {
+		return;
+	}
+
+	// Marca o pixel atual com a nova cor
+	matrix[i][j] = replacementColor;
+
+	// Explora os pixels adjacentes recursivamente
+	if (i > 0) {
+		floodFill(matrix, i - 1, j, targetColor, replacementColor);
+	}
+	if (j > 0) {
+		floodFill(matrix, i, j - 1, targetColor, replacementColor);
+	}
+	if (i < matrix.length - 1) {
+		floodFill(matrix, i + 1, j, targetColor, replacementColor);
+	}
+	if (j < matrix[0].length - 1) {
+		floodFill(matrix, i, j + 1, targetColor, replacementColor);
+	}
+}
+
+function findEnclosedAreas() {
+	// Percorre a primeira e última linha da matriz
+	for (let j = 0; j < matrixSlots[0].length; j++) {
+		if (matrixSlots[0][j] === 0) {
+			floodFill(matrixSlots, 0, j, 0, 2);
+		}
+		if (matrixSlots[matrixSlots.length - 1][j] === 0) {
+			floodFill(matrixSlots, matrixSlots.length - 1, j, 0, 2);
+		}
+	}
+
+	// Percorre a primeira e última coluna da matriz
+	for (let i = 0; i < matrixSlots.length; i++) {
+		if (matrixSlots[i][0] === 0) {
+			floodFill(matrixSlots, i, 0, 0, 2);
+		}
+		if (matrixSlots[i][matrixSlots[0].length - 1] === 0) {
+			floodFill(matrixSlots, i, matrixSlots[0].length - 1, 0, 2);
+		}
+	}
+
+	// Verifica se há zeros que não foram preenchidos
+	let found = false;
+	for (let i = 1; i < matrixSlots.length - 1; i++) {
+		for (let j = 1; j < matrixSlots[0].length - 1; j++) {
+			if (matrixSlots[i][j] === 0) {
+				found = true;
+				break;
+			}
+		}
+		if (found) {
+			break;
+		}
+	}
+
+	if (found) {
+		return true
+	}
+	return false;
 }
